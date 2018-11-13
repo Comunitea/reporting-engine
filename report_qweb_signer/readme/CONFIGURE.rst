@@ -19,7 +19,7 @@ For example, if you want to sign only customer invoices in open or paid state:
 read access to certificate file and password file
 
 Java Memory Settings
---------------------
+++++++++++++++++++++
 
 If you are signing large amounts of reports at the same time, or if you have a
 lower worker memory size than the JVM defaults, you may need to tune the JVM
