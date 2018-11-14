@@ -107,9 +107,11 @@ class IrActionsReport(models.Model):
 
     def _signer_bin(self, opts):
         me = os.path.dirname(__file__)
-        java_bin = 'java -jar -Xms4M -Xmx4M'
+        irc_param = self.env['ir.config_parameter'].sudo()
+        java_bin = 'java -jar'
+        java_param = irc_param.get_param('report_qweb_signer.java_parameters')
         jar = '{}/../static/jar/jPdfSign.jar'.format(me)
-        return '%s %s %s' % (java_bin, jar, opts)
+        return '%s %s %s %s' % (java_bin, java_param, jar, opts)
 
     def pdf_sign(self, pdf, certificate):
         pdfsigned = pdf + '.signed.pdf'

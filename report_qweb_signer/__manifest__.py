@@ -20,6 +20,7 @@
         "bin": ['/usr/bin/java'],
     },
     "data": [
+        "data/defaults.xml",
         "security/ir.model.access.csv",
         "views/report_certificate_view.xml",
         "views/res_company_view.xml",
