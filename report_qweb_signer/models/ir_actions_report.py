@@ -107,7 +107,7 @@ class IrActionsReport(models.Model):
 
     def _signer_bin(self, opts):
         me = os.path.dirname(__file__)
-        java_bin = 'java -jar'
+        java_bin = 'java -jar -Xms4M -Xmx4M'
         jar = '{}/../static/jar/jPdfSign.jar'.format(me)
         return '%s %s %s' % (java_bin, jar, opts)
 
@@ -133,23 +133,23 @@ class IrActionsReport(models.Model):
 
     @api.multi
     def render_qweb_pdf(self, res_ids=None, data=None):
-        report = self
         certificate = self._certificate_get(res_ids)
         if certificate and certificate.attachment:
             signed_content = self._attach_signed_read(res_ids, certificate)
             if signed_content:
                 _logger.debug(
                     "The signed PDF document '%s/%s' was loaded from the "
-                    "database", report_name, res_ids,
+                    "database", self.report_name, res_ids,
                 )
                 return signed_content
-        content = super(IrActionsReport, self).render_qweb_pdf(res_ids, data)
+        content, ext = super(IrActionsReport, self).render_qweb_pdf(res_ids,
+                                                                    data)
         if certificate:
             # Creating temporary origin PDF
             pdf_fd, pdf = tempfile.mkstemp(
                 suffix='.pdf', prefix='report.tmp.')
             with closing(os.fdopen(pdf_fd, 'wb')) as pf:
-                pf.write(content[0])
+                pf.write(content)
             _logger.debug(
                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
                 self.report_name, res_ids, certificate.name,
@@ -167,4 +167,4 @@ class IrActionsReport(models.Model):
                     _logger.error('Error when trying to remove file %s', fname)
             if certificate.attachment:
                 self._attach_signed_write(res_ids, certificate, content)
-        return content
+        return content, ext

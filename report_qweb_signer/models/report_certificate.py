@@ -6,6 +6,7 @@ from odoo import api, fields, models
 
 class ReportCertificate(models.Model):
     _name = 'report.certificate'
+    _description = 'Report Certificate'
     _order = 'sequence,id'
 
     @api.model
