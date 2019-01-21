@@ -5,6 +5,7 @@
 import base64
 from contextlib import closing
 import os
+import io
 import subprocess
 import tempfile
 import time
@@ -94,7 +95,7 @@ class IrActionsReport(models.Model):
         try:
             attachment = self.env['ir.attachment'].create({
                 'name': filename,
-                'datas': base64.encodestring(signed),
+                'datas': base64.encodebytes(signed),
                 'datas_fname': filename,
                 'res_model': certificate.model_id.model,
                 'res_id': res_ids[0],
@@ -108,7 +109,7 @@ class IrActionsReport(models.Model):
     def _signer_bin(self, opts):
         me = os.path.dirname(__file__)
         irc_param = self.env['ir.config_parameter'].sudo()
-        java_bin = 'java -jar'
+        java_bin = 'java -jar -Xms256m -Xmx1048m'
         jar = '{}/../static/jar/jPdfSign.jar'.format(me)
         return '%s %s %s' % (java_bin, jar, opts)
 
@@ -133,39 +134,40 @@ class IrActionsReport(models.Model):
         return pdfsigned
 
     @api.multi
-    def render_qweb_pdf(self, res_ids=None, data=None):
-        certificate = self._certificate_get(res_ids)
+    def postprocess_pdf_report(self, record, buffer):
+        certificate = self._certificate_get([record.id,])
         if certificate and certificate.attachment:
-            signed_content = self._attach_signed_read(res_ids, certificate)
+            signed_content = self._attach_signed_read([record.id,],
+                                                      certificate)
             if signed_content:
                 _logger.debug(
                     "The signed PDF document '%s/%s' was loaded from the "
-                    "database", self.report_name, res_ids,
+                    "database", self.report_name, record.id,
                 )
                 return signed_content
-        content, ext = super(IrActionsReport, self).render_qweb_pdf(res_ids,
-                                                                    data)
         if certificate:
             # Creating temporary origin PDF
             pdf_fd, pdf = tempfile.mkstemp(
                 suffix='.pdf', prefix='report.tmp.')
             with closing(os.fdopen(pdf_fd, 'wb')) as pf:
-                pf.write(content)
+                pf.write(buffer.getvalue())
             _logger.debug(
                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
-                self.report_name, res_ids, certificate.name,
+                self.report_name, record.id, certificate.name,
             )
             signed = self.pdf_sign(pdf, certificate)
             # Read signed PDF
             if os.path.exists(signed):
                 with open(signed, 'rb') as pf:
-                    content = pf.read()
+                    buffer = pf.read()
             # Manual cleanup of the temporary files
             for fname in (pdf, signed):
                 try:
                     os.unlink(fname)
                 except (OSError, IOError):
-                    _logger.error('Error when trying to remove file %s', fname)
+                    _logger.error('Error when trying to remove file %s',
+                                  fname)
             if certificate.attachment:
-                self._attach_signed_write(res_ids, certificate, content)
-        return content, ext
+                self._attach_signed_write([record.id,], certificate, buffer)
+        return super(IrActionsReport, self).postprocess_pdf_report(
+            record, io.BytesIO(buffer))
