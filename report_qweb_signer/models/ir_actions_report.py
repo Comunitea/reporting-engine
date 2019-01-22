@@ -14,6 +14,11 @@ from odoo import models, api, _
 from odoo.exceptions import UserError, AccessError
 from odoo.tools.safe_eval import safe_eval
 
+# PDF WRITE IMAGE LIBRARIES
+from PyPDF2 import PdfFileWriter, PdfFileReader
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+
 import logging
 _logger = logging.getLogger(__name__)
 
@@ -132,6 +137,67 @@ class IrActionsReport(models.Model):
                   'Message: %s. Output: %s') %
                 (process.returncode, err, out))
         return pdfsigned
+    
+    def _get_image_path(self, pdf):
+        """
+        Return the absolute path to the signed image to write
+        """
+        module_path = os.path.join(os.path.dirname(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)))))
+        image_path = module_path + '/static/img/firma.png'
+        return image_path
+    
+    def _get_image_tmp_pdf(self, pdf):
+        """
+        Return a path that will be use to write the new pdf with the image
+        and the sign
+        """
+        tmp_pdf_name = pdf.split('/')[-1]
+        tmp_split_lst = tmp_pdf_name.split('.')[0:-1]
+        new_name = tmp_split_lst[-1] + '_with_image.pdf'
+        pdf_image_path = "/tmp/report.tmp." + new_name
+        return pdf_image_path
+
+    
+    def pdf_write_image(self, pdf):
+        """
+        Pdf is the path to the single one pdf tmp file to attach
+        """
+        # msg = "Imagen firmada"
+        packet = io.BytesIO()
+        
+        mi_canvas = canvas.Canvas(packet, pagesize=letter)
+        
+        # Get signed image
+        image_path = self._get_image_path(pdf)
+        mi_canvas.drawImage(image_path, 420, 720, width=100, height=50)
+        # mi_canvas.drawString(420, 710, msg)
+        mi_canvas.save()
+        packet.seek(0)
+
+        new_tmp_image_pdf = PdfFileReader(packet)
+        
+        # Read the original pdf
+        current_pdf = PdfFileReader(pdf, "rb")
+
+        # New pdf Data to be  writed
+        output = PdfFileWriter()
+        
+        # Iter over all pdf pages (allways one i suppose)
+        num_pages = current_pdf.getNumPages()
+        for numero in range(0, num_pages):
+            page = current_pdf.getPage(numero)
+            page.mergePage(new_tmp_image_pdf.getPage(0))
+            _logger.debug("Signed Image added to header")
+            output.addPage(page)
+        
+        # Write the new pdf with the image and the 
+        # sign into the new tmp and return the path
+        pdf_output_path = self._get_image_tmp_pdf(pdf)
+        outputStream = open(pdf_output_path, "wb")
+        output.write(outputStream)
+        outputStream.close()
+        return pdf_output_path
 
     @api.multi
     def postprocess_pdf_report(self, record, buffer):
@@ -155,13 +221,15 @@ class IrActionsReport(models.Model):
                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
                 self.report_name, record.id, certificate.name,
             )
-            signed = self.pdf_sign(pdf, certificate)
+            # Adds the signed image
+            pdf_with_image = self.pdf_write_image(pdf)
+            signed = self.pdf_sign(pdf_with_image, certificate)
             # Read signed PDF
             if os.path.exists(signed):
                 with open(signed, 'rb') as pf:
                     buffer = pf.read()
             # Manual cleanup of the temporary files
-            for fname in (pdf, signed):
+            for fname in (pdf, signed, pdf_with_image):
                 try:
                     os.unlink(fname)
                 except (OSError, IOError):
@@ -191,13 +259,15 @@ class IrActionsReport(models.Model):
                     "Signing PDF document '%s' for IDs %s with certificate '%s'",
                     self.report_name, res_ids[0], certificate.name,
                 )
-                signed = self.pdf_sign(pdf, certificate)
+                # Adds the signed image
+                pdf_with_image = self.pdf_write_image(pdf)
+                signed = self.pdf_sign(pdf_with_image, certificate)
                 # Read signed PDF
                 if os.path.exists(signed):
                     with open(signed, 'rb') as pf:
                         buffer = pf.read()
                 # Manual cleanup of the temporary files
-                for fname in (pdf, signed):
+                for fname in (pdf, signed, pdf_with_image):
                     try:
                         os.unlink(fname)
                     except (OSError, IOError):
