@@ -118,6 +118,36 @@ class IrActionsReport(models.Model):
         jar = '{}/../static/jar/jPdfSign.jar'.format(me)
         return '%s %s %s' % (java_bin, jar, opts)
 
+    def _signer_bin_2(self, opts):
+        me = os.path.dirname(__file__)
+        irc_param = self.env['ir.config_parameter'].sudo()
+        java_bin = 'java -jar -Xms256m -Xmx1048m'
+        jar = '{}/../static/jar/JSignPdf.jar'.format(me)
+        return '%s %s %s' % (java_bin, jar, opts)
+
+    def pdf_sign_2(self, pdf, certificate):
+        pdfsigned = pdf[:-4] + '_signed.pdf'
+        p12 = _normalize_filepath(certificate.path)
+        passwd = _normalize_filepath(certificate.password_file)
+        if not (p12 and passwd):
+            raise UserError(
+                _('Signing report (PDF): '
+                  'Certificate or password file not found'))
+        signer_opts = ' "%s" -ksf "%s" -ksp "%s" -V ' \
+                      ' -llx 300 -lly 1075 -urx 600 -ury 100 ' \
+                      ' -fs 8 -l "CAMBRE" -r "CERTIFICAR" -d "/tmp"' \
+                      % ( pdf, p12, '300474')
+        signer = self._signer_bin_2(signer_opts)
+        process = subprocess.Popen(
+            signer, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        if process.returncode:
+            raise UserError(
+                _('Signing report (PDF): jPdfSign failed (error code: %s). '
+                  'Message: %s. Output: %s') %
+                (process.returncode, err, out))
+        return pdfsigned
+
     def pdf_sign(self, pdf, certificate):
         pdfsigned = pdf + '.signed.pdf'
         p12 = _normalize_filepath(certificate.path)
@@ -137,7 +167,7 @@ class IrActionsReport(models.Model):
                   'Message: %s. Output: %s') %
                 (process.returncode, err, out))
         return pdfsigned
-    
+
     def _get_image_path(self, pdf):
         """
         Return the absolute path to the signed image to write
@@ -146,7 +176,7 @@ class IrActionsReport(models.Model):
             os.path.dirname(os.path.abspath(__file__)))))
         image_path = module_path + '/static/img/firma.png'
         return image_path
-    
+
     def _get_image_tmp_pdf(self, pdf):
         """
         Return a path that will be use to write the new pdf with the image
@@ -158,16 +188,16 @@ class IrActionsReport(models.Model):
         pdf_image_path = "/tmp/report.tmp." + new_name
         return pdf_image_path
 
-    
+
     def pdf_write_image(self, pdf):
         """
         Pdf is the path to the single one pdf tmp file to attach
         """
         # msg = "Imagen firmada"
         packet = io.BytesIO()
-        
+
         mi_canvas = canvas.Canvas(packet, pagesize=letter)
-        
+
         # Get signed image
         image_path = self._get_image_path(pdf)
         mi_canvas.drawImage(image_path, 420, 720, width=100, height=50)
@@ -176,13 +206,13 @@ class IrActionsReport(models.Model):
         packet.seek(0)
 
         new_tmp_image_pdf = PdfFileReader(packet)
-        
+
         # Read the original pdf
         current_pdf = PdfFileReader(pdf, "rb")
 
         # New pdf Data to be  writed
         output = PdfFileWriter()
-        
+
         # Iter over all pdf pages (allways one i suppose)
         num_pages = current_pdf.getNumPages()
         for numero in range(0, num_pages):
@@ -190,8 +220,8 @@ class IrActionsReport(models.Model):
             page.mergePage(new_tmp_image_pdf.getPage(0))
             _logger.debug("Signed Image added to header")
             output.addPage(page)
-        
-        # Write the new pdf with the image and the 
+
+        # Write the new pdf with the image and the
         # sign into the new tmp and return the path
         pdf_output_path = self._get_image_tmp_pdf(pdf)
         outputStream = open(pdf_output_path, "wb")
@@ -222,14 +252,15 @@ class IrActionsReport(models.Model):
                 self.report_name, record.id, certificate.name,
             )
             # Adds the signed image
-            pdf_with_image = self.pdf_write_image(pdf)
-            signed = self.pdf_sign(pdf_with_image, certificate)
+            #pdf_with_image = self.pdf_write_image(pdf)
+            signed = self.pdf_sign_2(pdf, certificate)
             # Read signed PDF
             if os.path.exists(signed):
                 with open(signed, 'rb') as pf:
                     buffer = pf.read()
             # Manual cleanup of the temporary files
-            for fname in (pdf, signed, pdf_with_image):
+            #for fname in (pdf, signed, pdf_with_image):
+            for fname in (pdf, signed):
                 try:
                     os.unlink(fname)
                 except (OSError, IOError):
@@ -260,14 +291,15 @@ class IrActionsReport(models.Model):
                     self.report_name, res_ids[0], certificate.name,
                 )
                 # Adds the signed image
-                pdf_with_image = self.pdf_write_image(pdf)
-                signed = self.pdf_sign(pdf_with_image, certificate)
+                #pdf_with_image = self.pdf_write_image(pdf)
+                signed = self.pdf_sign_2(pdf, certificate)
                 # Read signed PDF
                 if os.path.exists(signed):
                     with open(signed, 'rb') as pf:
                         buffer = pf.read()
                 # Manual cleanup of the temporary files
-                for fname in (pdf, signed, pdf_with_image):
+                #for fname in (pdf, signed, pdf_with_image):
+                for fname in (pdf, signed):
                     try:
                         os.unlink(fname)
                     except (OSError, IOError):
