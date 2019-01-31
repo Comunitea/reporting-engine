@@ -88,7 +88,7 @@ class IrActionsReport(models.Model):
             ('res_id', '=', res_ids[0]),
         ], limit=1)
         if attachment:
-            return base64.decodestring(attachment.datas)
+            return attachment
         return False
 
     def _attach_signed_write(self, res_ids, certificate, signed):
