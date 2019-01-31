@@ -121,7 +121,7 @@ class IrActionsReport(models.Model):
     def _signer_bin_2(self, opts):
         me = os.path.dirname(__file__)
         irc_param = self.env['ir.config_parameter'].sudo()
-        java_bin = 'java -jar -Xms128m -Xmx512m'
+        java_bin = 'java -jar -Xms32m -Xmx256m'
         jar = '{}/../static/jar/JSignPdf.jar'.format(me)
         return '%s %s %s' % (java_bin, jar, opts)
 
