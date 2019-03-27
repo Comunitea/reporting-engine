@@ -269,8 +269,9 @@ class IrActionsReport(models.Model):
             if certificate.attachment:
                 return self._attach_signed_write([record.id,], certificate,
                                               buffer)
+            buffer = io.BytesIO(buffer)
         return super(IrActionsReport, self).postprocess_pdf_report(
-            record, io.BytesIO(buffer))
+            record, buffer)
 
     @api.multi
     def _post_pdf(self, save_in_attachment, pdf_content=None, res_ids=None):
