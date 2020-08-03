@@ -128,7 +128,10 @@ class IrActionsReport(models.Model):
     def pdf_sign_2(self, pdf, certificate):
         pdfsigned = pdf[:-4] + '_signed.pdf'
         p12 = _normalize_filepath(certificate.path)
-        passwd = _normalize_filepath(certificate.password_file)
+        passwd_path = _normalize_filepath(certificate.password_file)
+        passwd_f = open(passwd_path, "tr")
+        passwd = passwd_f.read().strip()
+        passwd_f.close()
         if not (p12 and passwd):
             raise UserError(
                 _('Signing report (PDF): '
@@ -136,7 +139,7 @@ class IrActionsReport(models.Model):
         signer_opts = ' "%s" -ksf "%s" -ksp "%s" -V ' \
                       ' -llx 300 -lly 1075 -urx 600 -ury 100 ' \
                       ' -fs 8 -l "CAMBRE" -r "CERTIFICAR" -d "/tmp"' \
-                      % ( pdf, p12, '300474')
+                      % ( pdf, p12, passwd)
         signer = self._signer_bin_2(signer_opts)
         process = subprocess.Popen(
             signer, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
