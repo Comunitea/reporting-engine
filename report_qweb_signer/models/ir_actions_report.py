@@ -138,7 +138,7 @@ class IrActionsReport(models.Model):
                   'Certificate or password file not found'))
         signer_opts = ' "%s" -ksf "%s" -ksp "%s" -V ' \
                       ' -llx 300 -lly 1075 -urx 600 -ury 100 ' \
-                      ' -fs 8 -l "CAMBRE" -r "CERTIFICAR" -d "/tmp"' \
+                      ' -fs 8 -r "CERTIFICAR" -d "/tmp"' \
                       % ( pdf, p12, passwd)
         signer = self._signer_bin_2(signer_opts)
         process = subprocess.Popen(
