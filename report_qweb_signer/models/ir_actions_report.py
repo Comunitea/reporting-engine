@@ -105,6 +105,17 @@ class IrActionsReport(models.Model):
                   'You do not have enough access rights to save attachments'))
         return attachment
 
+
+    def _signer_bin_2(self, opts):
+        me = os.path.dirname(__file__)
+        irc_param = self.env['ir.config_parameter'].sudo()
+        java_bin = 'java -jar'
+        java_param = irc_param.get_param('report_qweb_signer.java_parameters')
+        java_position_param = irc_param.get_param('report_qweb_signer.java_position_parameters')
+        jar = '{}/../static/jar/JSignPdf.jar'.format(me)
+        return '%s %s %s %s %s' % (java_bin, java_param, jar, opts, java_position_param)
+
+
     def _signer_bin(self, opts):
         me = os.path.dirname(__file__)
         irc_param = self.env['ir.config_parameter'].sudo()
@@ -112,6 +123,34 @@ class IrActionsReport(models.Model):
         java_param = irc_param.get_param('report_qweb_signer.java_parameters')
         jar = '{}/../static/jar/jPdfSign.jar'.format(me)
         return '%s %s %s %s' % (java_bin, java_param, jar, opts)
+
+
+    def pdf_sign_2(self, pdf, certificate):
+        pdfsigned = pdf[:-4] + '_signed.pdf'
+        p12 = _normalize_filepath(certificate.path)
+        passwd_path = _normalize_filepath(certificate.password_file)
+        passwd_f = open(passwd_path, "tr")
+        passwd = passwd_f.read().strip()
+        passwd_f.close()
+        if not (p12 and passwd):
+            raise UserError(
+                _('Signing report (PDF): '
+                  'Certificate or password file not found'))
+        signer_opts = ' "%s" -ksf "%s" -ksp "%s" -V ' \
+                      ' -d "/tmp"' \
+                      % ( pdf, p12, passwd)
+        signer = self._signer_bin_2(signer_opts)
+        process = subprocess.Popen(
+            signer, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        if process.returncode:
+            raise UserError(
+                _('Signing report (PDF): jPdfSign failed (error code: %s). '
+                  'Message: %s. Output: %s') %
+                (process.returncode, err, out))
+        return pdfsigned
+
+
 
     def pdf_sign(self, pdf, certificate):
         pdfsigned = pdf + '.signed.pdf'
@@ -156,7 +195,7 @@ class IrActionsReport(models.Model):
                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
                 self.report_name, res_ids, certificate.name,
             )
-            signed = self.pdf_sign(pdf, certificate)
+            signed = self.pdf_sign_2(pdf, certificate)
             # Read signed PDF
             if os.path.exists(signed):
                 with open(signed, 'rb') as pf:
