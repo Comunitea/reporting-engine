@@ -8,6 +8,7 @@ import os
 import subprocess
 import tempfile
 import time
+import io
 
 from odoo import models, api, _
 from odoo.exceptions import UserError, AccessError
@@ -173,39 +174,83 @@ class IrActionsReport(models.Model):
         return pdfsigned
 
     @api.multi
-    def render_qweb_pdf(self, res_ids=None, data=None):
-        certificate = self._certificate_get(res_ids)
+    def postprocess_pdf_report(self, record, buffer):
+        certificate = self._certificate_get([record.id,])
         if certificate and certificate.attachment:
-            signed_content = self._attach_signed_read(res_ids, certificate)
+            signed_content = self._attach_signed_read([record.id,],
+                                                      certificate)
             if signed_content:
                 _logger.debug(
                     "The signed PDF document '%s/%s' was loaded from the "
-                    "database", self.report_name, res_ids,
+                    "database", self.report_name, record.id,
                 )
-                return signed_content, 'pdf'
-        content, ext = super(IrActionsReport, self).render_qweb_pdf(res_ids,
-                                                                    data)
+                buffer = io.BytesIO(signed_content)
+                return buffer
         if certificate:
             # Creating temporary origin PDF
             pdf_fd, pdf = tempfile.mkstemp(
                 suffix='.pdf', prefix='report.tmp.')
             with closing(os.fdopen(pdf_fd, 'wb')) as pf:
-                pf.write(content)
+                pf.write(buffer.getvalue())
             _logger.debug(
                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
-                self.report_name, res_ids, certificate.name,
+                self.report_name, record.id, certificate.name,
             )
+            # Adds the signed image
+            #pdf_with_image = self.pdf_write_image(pdf)
             signed = self.pdf_sign_2(pdf, certificate)
             # Read signed PDF
             if os.path.exists(signed):
                 with open(signed, 'rb') as pf:
-                    content = pf.read()
+                    buffer = pf.read()
             # Manual cleanup of the temporary files
+            #for fname in (pdf, signed, pdf_with_image):
             for fname in (pdf, signed):
                 try:
                     os.unlink(fname)
                 except (OSError, IOError):
-                    _logger.error('Error when trying to remove file %s', fname)
+                    _logger.error('Error when trying to remove file %s',
+                                  fname)
             if certificate.attachment:
-                self._attach_signed_write(res_ids, certificate, content)
-        return content, ext
+                self._attach_signed_write([record.id,], certificate,
+                                              buffer)
+                buffer = io.BytesIO(buffer)
+                return buffer
+        return super().postprocess_pdf_report(
+            record, buffer)
+
+    # @api.multi
+    # def _post_pdf(self, save_in_attachment, pdf_content=None, res_ids=None):
+    #     res = super(IrActionsReport, self)._post_pdf(save_in_attachment,
+    #                                                  pdf_content, res_ids)
+
+    #     if pdf_content and len(res_ids) == 1:
+    #         certificate = self._certificate_get(res_ids)
+
+    #         if certificate:
+    #             # Creating temporary origin PDF
+    #             pdf_fd, pdf = tempfile.mkstemp(
+    #                 suffix='.pdf', prefix='report.tmp.')
+    #             with closing(os.fdopen(pdf_fd, 'wb')) as pf:
+    #                 pf.write(pdf_content)
+    #             _logger.debug(
+    #                 "Signing PDF document '%s' for IDs %s with certificate '%s'",
+    #                 self.report_name, res_ids[0], certificate.name,
+    #             )
+    #             # Adds the signed image
+    #             #pdf_with_image = self.pdf_write_image(pdf)
+    #             signed = self.pdf_sign_2(pdf, certificate)
+    #             # Read signed PDF
+    #             if os.path.exists(signed):
+    #                 with open(signed, 'rb') as pf:
+    #                     buffer = pf.read()
+    #             # Manual cleanup of the temporary files
+    #             #for fname in (pdf, signed, pdf_with_image):
+    #             for fname in (pdf, signed):
+    #                 try:
+    #                     os.unlink(fname)
+    #                 except (OSError, IOError):
+    #                     _logger.error('Error when trying to remove file %s',
+    #                                   fname)
+    #             res = buffer
+    #     return res
