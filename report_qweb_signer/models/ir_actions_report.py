@@ -113,6 +113,9 @@ class IrActionsReport(models.Model):
         java_bin = 'java -jar'
         java_param = irc_param.get_param('report_qweb_signer.java_parameters')
         java_position_param = irc_param.get_param('report_qweb_signer.java_position_parameters')
+        visible_sign = irc_param.get_param('report_qweb_signer.visible_sign')
+        if visible_sign == "1":
+            opts += " -V"
         jar = '{}/../static/jar/JSignPdf.jar'.format(me)
         return '%s %s %s %s %s' % (java_bin, java_param, jar, opts, java_position_param)
 
@@ -137,7 +140,7 @@ class IrActionsReport(models.Model):
             raise UserError(
                 _('Signing report (PDF): '
                   'Certificate or password file not found'))
-        signer_opts = ' "%s" -ksf "%s" -ksp "%s" -V ' \
+        signer_opts = ' "%s" -ksf "%s" -ksp "%s" ' \
                       ' -d "/tmp"' \
                       % ( pdf, p12, passwd)
         signer = self._signer_bin_2(signer_opts)
