@@ -40,7 +40,9 @@ class IrActionsReport(models.Model):
             return False
         company_id = self.env.company.id
         if res_ids:
-            obj = self.env[self.model].browse(res_ids[0])
+           if not isinstance(res_ids, int):
+                res_ids = res_ids[0]
+            obj = self.env[self.model].browse(res_ids)
             if "company_id" in obj:
                 company_id = obj.company_id.id
         certificates = self.env["report.certificate"].search(
