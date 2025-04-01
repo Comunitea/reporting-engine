@@ -5,10 +5,10 @@
     "name": "Kpi Dashboard Bokeh",
     "summary": """
         Create dashboards using bokeh""",
-    "version": "12.0.1.0.0",
+    "version": "12.0.1.0.1",
     "license": "AGPL-3",
     "author": "Creu Blanca,Odoo Community Association (OCA)",
-    "website": "https://github.com/OCA/reporting-engine ",
+    "website": "https://github.com/OCA/reporting-engine",
     "depends": ["web_widget_bokeh_chart", "kpi_dashboard"],
     "data": ["views/webclient_templates.xml"],
     "qweb": ["static/src/xml/dashboard.xml"],

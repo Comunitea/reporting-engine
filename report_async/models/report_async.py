@@ -2,6 +2,7 @@
 # License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl.html)
 
 import base64
+from datetime import datetime, timedelta
 from odoo import api, fields, models, _
 from odoo.tools.safe_eval import safe_eval
 from odoo.exceptions import UserError
@@ -69,6 +70,14 @@ class ReportAsync(models.Model):
         compute='_compute_file',
         help="List all files created by this report background process",
     )
+    schedule_time = fields.Char(
+        string='Schedule Time',
+        help="Time when the job will be executed",
+    )
+    schedule_date = fields.Date(
+        string='Schedule Date',
+        help="Date when the job will be executed",
+        )
 
     @api.multi
     def _compute_job(self):
@@ -110,6 +119,8 @@ class ReportAsync(models.Model):
         result = action.read()[0]
         ctx = safe_eval(result.get('context', {}))
         ctx.update({'async_process': True})
+        if self.schedule_time:
+            ctx.update({'eta': self._get_next_schedule_time()})
         result['context'] = ctx
         return result
 
@@ -160,3 +171,19 @@ class ReportAsync(models.Model):
         template.send_mail(attachment.id,
                            notif_layout='mail.mail_notification_light',
                            force_send=False)
+
+    def _get_next_schedule_time(self):
+        now = fields.Datetime.now()
+        target_time = datetime.strptime(self.schedule_time, "%H:%M").time() \
+            if self.schedule_time else now.time()
+
+        if self.schedule_date:
+            target_datetime = datetime.combine(self.schedule_date, target_time)
+            if now > target_datetime:
+                raise UserError(_('The scheduled time must be in the future.'))
+        else:
+            target_datetime = datetime.combine(now.date(), target_time)
+            if now > target_datetime:
+                target_datetime += timedelta(days=1)
+
+        return target_datetime

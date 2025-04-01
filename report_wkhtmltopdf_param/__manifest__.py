@@ -4,7 +4,7 @@
 # noinspection PyStatementEffect
 {
     "name": "Report Wkhtmltopdf Param",
-    "version": "12.0.1.0.0",
+    "version": "12.0.1.0.1",
     "license": "AGPL-3",
     "summary": """
         Add new parameters for a paper format to be used by wkhtmltopdf
@@ -13,7 +13,7 @@
     "author": "Avoin.Systems,"
               "Eficent,"
               "Odoo Community Association (OCA)",
-    "website": "https://avoin.systems",
+    "website": "https://github.com/OCA/reporting-engine",
     "category": "Technical Settings",
     "depends": [
         "web",

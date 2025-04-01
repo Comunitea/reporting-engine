@@ -4,7 +4,7 @@
 
 {
     "name": "Report QWeb Parameter",
-    "version": "12.0.1.0.1",
+    "version": "12.0.1.0.2",
     "license": "AGPL-3",
     "summary": """
         Add new parameters for qweb templates in order to reduce field length
@@ -12,7 +12,7 @@
     """,
     "author": "Creu Blanca,"
               "Odoo Community Association (OCA)",
-    "website": "https://github.com/oca/reporting-engine",
+    "website": "https://github.com/OCA/reporting-engine",
     "category": "Technical Settings",
     "depends": [
         "web",

@@ -3,9 +3,9 @@
 
 {
     "name": "Key Performance Indicator",
-    "version": "12.0.1.0.0",
+    "version": "12.0.1.0.1",
     "author": "Savoir-faire Linux,Odoo Community Association (OCA)",
-    "website": "http://www.savoirfairelinux.com",
+    "website": "https://github.com/OCA/reporting-engine",
     "license": "AGPL-3",
     "category": "Report",
     "depends": [
