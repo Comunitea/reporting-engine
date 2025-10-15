@@ -18,7 +18,7 @@ License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
                     >
                         <field
                             name="report_certificate_ids"
-                            context="{'default_company_id': active_id}"
+                            context="{'default_company_id': id}"
                         />
                     </page>
                 </notebook>
